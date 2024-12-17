@@ -1,0 +1,14 @@
+---
+
+packages:
+  - git
+  - gnupg2
+  - apt-transport-https
+  - ca-certificates
+  - wget
+  - curl
+  - software-properties-common
+  - bash-completion
+  - python3-docker
+
+compose_network: ""

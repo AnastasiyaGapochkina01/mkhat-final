@@ -1,0 +1,32 @@
+---
+- name: Check if audit-svc folder exists
+  file:
+    path: "{{ prj_dir }}"
+    state: directory
+
+- name: Create config
+  template:
+    src: config.j2
+    dest: "{{ prj_dir }}/config.yml"
+
+- name: Create env
+  template:
+    src: env.j2
+    dest: "{{ prj_dir }}/.env"
+
+- name: Copy docker compose
+  copy:
+    src: compose.yml
+    dest: "{{ prj_dir }}/compose.yml"
+
+- name: Copy nginx config
+  copy:
+    src: audit-svc.conf
+    dest: "{{ prj_dir }}/audit-svc.conf"
+
+- name: Login
+  command: docker login -uanestesia -pglpat-_sSPukRPk1dhr94eB27W anestesia-tech.gitlab.yandexcloud.net:5050
+
+- name: Run audit-svc stack
+  command: docker compose -f "{{ prj_dir }}/compose.yml" up -d
+

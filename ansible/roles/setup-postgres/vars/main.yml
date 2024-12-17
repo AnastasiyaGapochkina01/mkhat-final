@@ -1,0 +1,7 @@
+---
+# vars file for setup-postgres
+pg_version: 17
+database: "{{ lookup('hashi_vault', 'secret=kv/data/mkhat/database') }}" 
+db_user: "{{ database.db_user }}"
+db_pass: "{{ database.db_pass }}"
+db_name: "{{ database.db_name }}"

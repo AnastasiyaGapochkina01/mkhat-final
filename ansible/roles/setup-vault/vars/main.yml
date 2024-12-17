@@ -1,0 +1,2 @@
+vault_dir: /etc/vault
+prj_dir: /opt/audit-svc

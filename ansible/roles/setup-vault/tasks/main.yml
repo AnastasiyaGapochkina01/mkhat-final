@@ -1,0 +1,56 @@
+---
+- name: Create vault dir
+  file:
+    path: "{{ vault_dir }}"
+    state: directory
+
+- name: Create project dir
+  file:
+    path: "{{ prj_dir }}"
+    state: directory
+
+- name: Create render dir
+  file:
+    path: "{{ prj_dir }}/render"
+    state: directory
+    mode: 0777
+
+- name: Create vault dir
+  file:
+    path: "{{ vault_dir }}/config"
+    state: directory
+
+- name: Create vault confs
+  copy:
+    src: agent-config.hcl
+    dest: "{{ vault_dir }}/config/agent-config.hcl"
+
+- name: Copy config template
+  copy:
+    src: config.tpl
+    dest: "{{ vault_dir }}/config/config.tpl"
+
+- name: Create approle secretid
+  template:
+    src: secretid.j2
+    dest: "{{ vault_dir }}/config/secretid"
+
+- name: Create approle roleid
+  template:
+    src: roleid.j2
+    dest: "{{ vault_dir }}/config/roleid"
+
+- name: Run vault agent
+  docker_container:
+    name: vault
+    image: hashicorp/vault
+    command: 'vault agent -config /config/agent-config.hcl'
+    networks:
+      - name: "{{ compose_network }}"
+    volumes:
+      - "{{ vault_dir }}/config:/config"
+      - "{{ prj_dir }}/render:/render"
+  
+- name: Wait for first render
+  pause:
+    minutes: 2

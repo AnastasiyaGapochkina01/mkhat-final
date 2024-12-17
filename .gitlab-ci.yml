@@ -1,0 +1,56 @@
+stages:
+  - build
+  - setup-project
+
+variables:
+  REGISTRY: anestesia-tech.gitlab.yandexcloud.net:5050
+  VAULT_ADDR: http://84.201.136.84:8201
+  TAG: $REGISTRY/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME:latest
+  REGISTRY_USER: anestesia
+  DOCKER_IMAGE: docker:24.0.5
+  APP_ROLE_ID: b7729af1-1da2-14f6-89f8-fd218106640c
+  APP_ROLE_SECRET_ID: 2129adfb-0794-1d4b-71bd-159845d6610b
+  COMPOSE_NET: audit-svc
+  DEPLOY_HOST: 89.169.168.187
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+default:
+  before_script:
+    - echo $TOKEN | docker login $REGISTRY -u $REGISTRY_USER --password-stdin
+
+build image:
+  stage: build
+  image: $DOCKER_IMAGE
+  script:
+    - echo "Building image..."
+    - docker build -t $TAG .
+    - docker push $TAG
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: $CI_COMMIT_TAG
+
+
+run playbook:
+  stage: setup-project
+  image: debian
+  before_script:
+    - apt update && apt install -y python3 python3-pip python3-venv python3-hvac openssh-client ansible curl jq
+    - eval $(ssh-agent -s)
+    - chmod 400 "$SSH_PRIVATE_KEY"
+    - ssh-add "$SSH_PRIVATE_KEY"
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: $CI_COMMIT_TAG
+  needs: ["build image"]
+  script:
+    - export VAULT_ADDR=$VAULT_ADDR
+    - export ROLE_ID=$APP_ROLE_ID
+    - export ANSIBLE_VAULT_SECRET_ID=$APP_ROLE_SECRET_ID
+    - |-
+        export DATA='{"role_id": "'"$ROLE_ID"'", "secret_id": "'"$ANSIBLE_VAULT_SECRET_ID"'"}'
+    - |-
+        export VAULT_TOKEN=$(curl -s --request POST --data "$DATA" $VAULT_ADDR/v1/auth/approle/login | jq -r ".auth.client_token")
+    - |-
+        ansible-playbook -u anestesia -i $DEPLOY_HOST, -e compose_network=$COMPOSE_NET -e secretid=$APP_ROLE_SECRET_ID -e roleid=$APP_ROLE_ID ansible/runbook.yml
